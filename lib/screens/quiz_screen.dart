@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:quiz_test/utils/color/app_color.dart';
+import 'package:quiz_test/utils/helper/shared_prefs_manager.dart';
 import 'package:quiz_test/utils/values/app_constants.dart';
 
 import '../data/model/quiz_model.dart';
@@ -21,10 +22,12 @@ class _QuizScreenState extends State<QuizScreen> {
   late QuizModel quizModel;
   int quizIndex = 0;
   int currentScore = 0;
+  int highScore = 0;
 
   @override
   void initState(){
     SchedulerBinding.instance.addPostFrameCallback((_) async {
+      highScore= await SharedPrefManager.getHighScore();
       _initQuizLoad();
     });
     super.initState();
@@ -39,81 +42,61 @@ class _QuizScreenState extends State<QuizScreen> {
         title: Text(AppConstant.appName,style: TextStyle(color: AppColor.white),
         ),
         centerTitle: true,
+
         actions: [
-          Text('Your Score: ${currentScore}',style: TextStyle(color: AppColor.white))
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Text('Your Score: ${currentScore}',style: TextStyle(color: AppColor.white)),
+          )
         ],
       ),
       body: Center(
-        child: Container(
-          width: double.infinity,
-          height: MediaQuery.of(context).size.width,
-          alignment: Alignment.center,
-          child: ListView.builder(
-            shrinkWrap: true,
-              physics: AlwaysScrollableScrollPhysics(),
-              scrollDirection: Axis.vertical,
-              itemCount: quizModel.questions.length,
-              itemBuilder: (context,index){
-                return Container(
-                  padding: EdgeInsets.all(10),
-                  margin: EdgeInsets.all(10),
-                  width: double.infinity,
-                  height: MediaQuery.of(context).size.width-10,
-                  color: Colors.red,
-                  alignment: Alignment.center,
-                  child: InkWell(
-                    onTap: (){
-                      setState(() {
-                        if (quizIndex<quizModel.questions.length) {
-                          quizIndex++;
-                        } else {
-                          quizIndex=0;
-                        }
-                      });
-                    },
-                    child: Visibility(
-                      visible: quizIndex==index,
-                      child: Column(
-                        mainAxisSize: MainAxisSize.max,
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        child: ListView.builder(
+          shrinkWrap: true,
+            physics: AlwaysScrollableScrollPhysics(),
+            scrollDirection: Axis.vertical,
+            itemCount: quizModel.questions.length,
+            itemBuilder: (context,index){
+              return questionBackgroundUi(
+                  Column(
+                    mainAxisSize: MainAxisSize.max,
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      questionNumberAndScoreUi(index,quizModel.questions.length,quizModel.questions[index].score),
+                      questionImageUi(quizModel.questions[index].questionImageUrl!,AppConstant.assetImagePath+AppConstant.placeholderImagePath),
+                      questionUi(quizModel.questions[index].question),
+                      Column(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.start,
                         crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisSize: MainAxisSize.max,
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text('Score: ${quizModel.questions[index].score}'),
-                                Text('${index+1}/${quizModel.questions.length}'),
-                              ],
+                        children: quizModel.questions[index].answers.answerMap!.entries.map((e) => Card(
+                          //color: ,
+                          child: InkWell(
+                            onTap: (){
+                              setState(() {
+                                if(e.key==quizModel.questions[index].correctAnswer){
+                                  currentScore+=int.parse(quizModel.questions[index].score);
+                                  //print('Current score:$currentScore');
+                                }
+                                if(index==quizModel.questions.length-1){
+                                  if(highScore<currentScore){
+                                    SharedPrefManager.setHighScore(currentScore);
+                                    widgetSnackBar(context,AppConstant.congorMsg);
+                                  }
+                                }
+                              });
+                            },
+                            child: Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: Text('${e.key}: ${e.value}',),
                             ),
-                          Text('Q: ${quizModel.questions[index].question}'),
-                            Column(
-                            mainAxisSize: MainAxisSize.min,
-                            mainAxisAlignment: MainAxisAlignment.start,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: quizModel.questions[index].answers.answerMap!.entries.map((e) => Card(
-                              //color: ,
-                              child: InkWell(
-                                onTap: (){
-                                  setState(() {
-                                    if(e.key==quizModel.questions[index].correctAnswer){
-                                      currentScore+=int.parse(quizModel.questions[index].score);
-                                    }
-                                  });
-                                },
-                                child: Padding(
-                                  padding: const EdgeInsets.all(8.0),
-                                  child: Text('${e.key}: ${e.value}',),
-                                ),
-                              ),
-                            )).toList(),),
-                        ],
-                      ),
-                    ),
-                  ),
-                );
-              }),
-        ),
+                          ),
+                        )).toList(),),
+                    ],
+                  )
+              );
+            }),
       ),
     );
   }
@@ -143,6 +126,50 @@ class _QuizScreenState extends State<QuizScreen> {
     } catch (e) {
       print(e);
     }
+  }
+
+  Widget questionNumberAndScoreUi(int index,int questionLength,String questionScore){
+    return Row(
+      mainAxisSize: MainAxisSize.max,
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text('Score: $questionScore'),
+        Text('${index+1}/$questionLength'),
+      ],
+    );
+  }
+
+  Widget questionImageUi(String imageUrl,String placeholderPath){
+    return SizedBox(
+      height: 70,width: MediaQuery.of(context).size.width-20,
+      child: FadeInImage(
+          placeholder: AssetImage(placeholderPath),
+          image: NetworkImage(imageUrl),
+          imageErrorBuilder:
+              (context, error, stackTrace) =>Image.asset(placeholderPath),
+          fit: BoxFit.fitWidth
+      ),
+    );
+  }
+
+  Widget questionUi(String question){
+    return Text('Q: $question',style: TextStyle(fontSize: 20,),maxLines: 2,);
+  }
+
+  Widget questionBackgroundUi(Widget child){
+    return Container(
+      padding: EdgeInsets.all(10),
+      margin: EdgeInsets.all(10),
+      width: double.infinity,
+      height: MediaQuery.of(context).size.width-10,
+      //color: Colors.red,
+      decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(10),
+          image: DecorationImage(image: AssetImage(AppConstant.assetImagePath+AppConstant.backgroundImagePath),fit: BoxFit.fill)
+      ),
+      alignment: Alignment.center,
+      child: child,
+    );
   }
 
 }
