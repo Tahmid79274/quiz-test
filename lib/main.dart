@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
+import 'package:quiz_test/utils/helper/shared_prefs_manager.dart';
 
 import 'screens/home_screen.dart';
 
@@ -6,10 +8,25 @@ void main() {
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
 
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
   // This widget is the root of your application.
+  int highScore = 0;
+  @override
+  void initState(){
+    SchedulerBinding.instance.addPostFrameCallback((_) async {
+      highScore= await SharedPrefManager.getHighScore();
+      print('High:$highScore');
+    });
+    super.initState();
+  }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -34,7 +51,7 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: const HomeScreen(),
+      home: HomeScreen(score: highScore),
     );
   }
 }

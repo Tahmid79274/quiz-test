@@ -7,24 +7,9 @@ import '../utils/color/app_color.dart';
 import '../utils/helper/shared_prefs_manager.dart';
 import 'quiz_screen.dart';
 
-class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
-
-  @override
-  State<HomeScreen> createState() => _HomeScreenState();
-}
-
-class _HomeScreenState extends State<HomeScreen> {
-
-  int highScore = 0;
-
-  @override
-  void initState(){
-    SchedulerBinding.instance.addPostFrameCallback((_) async {
-      highScore= await SharedPrefManager.getHighScore();
-    });
-    super.initState();
-  }
+class HomeScreen extends StatelessWidget {
+  int score;
+  HomeScreen({super.key,required this.score});
 
   @override
   Widget build(BuildContext context) {
@@ -56,7 +41,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget highestScoreUi(){
-    return Text('Highest Score: $highScore');
+    return Text('Highest Score: $score');
   }
-
 }

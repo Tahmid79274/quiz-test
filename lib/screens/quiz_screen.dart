@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:quiz_test/screens/home_screen.dart';
 import 'package:quiz_test/utils/color/app_color.dart';
 import 'package:quiz_test/utils/helper/shared_prefs_manager.dart';
 import 'package:quiz_test/utils/values/app_constants.dart';
@@ -27,7 +28,8 @@ class _QuizScreenState extends State<QuizScreen> {
   @override
   void initState(){
     SchedulerBinding.instance.addPostFrameCallback((_) async {
-      highScore= await SharedPrefManager.getHighScore();
+      highScore = await SharedPrefManager.getHighScore();
+      print('High:$highScore');
       _initQuizLoad();
     });
     super.initState();
@@ -42,7 +44,6 @@ class _QuizScreenState extends State<QuizScreen> {
         title: Text(AppConstant.appName,style: TextStyle(color: AppColor.white),
         ),
         centerTitle: true,
-
         actions: [
           Padding(
             padding: const EdgeInsets.all(8.0),
@@ -57,44 +58,47 @@ class _QuizScreenState extends State<QuizScreen> {
             scrollDirection: Axis.vertical,
             itemCount: quizModel.questions.length,
             itemBuilder: (context,index){
-              return questionBackgroundUi(
-                  Column(
-                    mainAxisSize: MainAxisSize.max,
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      questionNumberAndScoreUi(index,quizModel.questions.length,quizModel.questions[index].score),
-                      questionImageUi(quizModel.questions[index].questionImageUrl!,AppConstant.assetImagePath+AppConstant.placeholderImagePath),
-                      questionUi(quizModel.questions[index].question),
-                      Column(
-                        mainAxisSize: MainAxisSize.min,
-                        mainAxisAlignment: MainAxisAlignment.start,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: quizModel.questions[index].answers.answerMap!.entries.map((e) => Card(
-                          //color: ,
-                          child: InkWell(
-                            onTap: (){
-                              setState(() {
-                                if(e.key==quizModel.questions[index].correctAnswer){
-                                  currentScore+=int.parse(quizModel.questions[index].score);
-                                  //print('Current score:$currentScore');
-                                }
-                                if(index==quizModel.questions.length-1){
-                                  if(highScore<currentScore){
-                                    SharedPrefManager.setHighScore(currentScore);
-                                    widgetSnackBar(context,AppConstant.congorMsg);
+              return Visibility(
+                visible: index==quizIndex,
+                child: questionBackgroundUi(
+                    Column(
+                      mainAxisSize: MainAxisSize.max,
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        questionNumberAndScoreUi(index,quizModel.questions.length,quizModel.questions[index].score),
+                        questionImageUi(quizModel.questions[index].questionImageUrl!,AppConstant.assetImagePath+AppConstant.placeholderImagePath),
+                        questionUi(quizModel.questions[index].question),
+                        Column(
+                          mainAxisSize: MainAxisSize.min,
+                          mainAxisAlignment: MainAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: quizModel.questions[index].answers.answerMap!.entries.map((e) => Card(
+                            //color: ,
+                            child: InkWell(
+                              onTap: (){
+                                setState(() {
+                                  quizIndex++;
+                                  if(e.key==quizModel.questions[index].correctAnswer){
+                                    currentScore+=int.parse(quizModel.questions[index].score);
+                                    //print('Current score:$currentScore');
                                   }
-                                }
-                              });
-                            },
-                            child: Padding(
-                              padding: const EdgeInsets.all(8.0),
-                              child: Text('${e.key}: ${e.value}',),
+                                  if(index==quizModel.questions.length-1){
+                                    if(highScore<currentScore){
+                                      highScore=currentScore;
+                                      SharedPrefManager.setHighScore(highScore);
+                                      widgetSnackBar(context,AppConstant.congorMsg);
+                                    }
+                                    Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context)=>HomeScreen(score: highScore,)), (route) => false);
+                                  }
+                                });
+                              },
+                              child: answerOptionUi(e.key,e.value),
                             ),
-                          ),
-                        )).toList(),),
-                    ],
-                  )
+                          )).toList(),),
+                      ],
+                    )
+                ),
               );
             }),
       ),
@@ -126,6 +130,13 @@ class _QuizScreenState extends State<QuizScreen> {
     } catch (e) {
       print(e);
     }
+  }
+
+  Widget answerOptionUi(String key,String value){
+    return Padding(
+      padding: const EdgeInsets.all(8.0),
+      child: Text('$key}: $value',),
+    );
   }
 
   Widget questionNumberAndScoreUi(int index,int questionLength,String questionScore){
