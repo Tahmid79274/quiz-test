@@ -12,7 +12,8 @@ import '../utils/helper/util_functionality.dart';
 import '../utils/helper/util_views.dart';
 
 class QuizScreen extends StatefulWidget {
-  const QuizScreen({super.key});
+  QuizModel quizModel;
+  QuizScreen({super.key,required this.quizModel});
 
   @override
   State<QuizScreen> createState() => _QuizScreenState();
@@ -20,19 +21,23 @@ class QuizScreen extends StatefulWidget {
 
 class _QuizScreenState extends State<QuizScreen> {
 
-  late QuizModel quizModel;
+  //late QuizModel quizModel;
   int quizIndex = 0;
   int currentScore = 0;
   int highScore = 0;
 
   @override
   void initState(){
-    SchedulerBinding.instance.addPostFrameCallback((_) async {
-      highScore = await SharedPrefManager.getHighScore();
-      print('High:$highScore');
-      _initQuizLoad();
-    });
+
     super.initState();
+    fetchHighScore();
+  }
+
+  void fetchHighScore() async {
+    int newHighScore = await SharedPrefManager.getHighScore();
+    setState(() {
+      highScore = newHighScore;
+    });
   }
 
   @override
@@ -56,7 +61,7 @@ class _QuizScreenState extends State<QuizScreen> {
           shrinkWrap: true,
             physics: AlwaysScrollableScrollPhysics(),
             scrollDirection: Axis.vertical,
-            itemCount: quizModel.questions.length,
+            itemCount: widget.quizModel.questions.length,
             itemBuilder: (context,index){
               return Visibility(
                 visible: index==quizIndex,
@@ -66,36 +71,38 @@ class _QuizScreenState extends State<QuizScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        questionNumberAndScoreUi(index,quizModel.questions.length,quizModel.questions[index].score),
-                        questionImageUi(quizModel.questions[index].questionImageUrl!,AppConstant.assetImagePath+AppConstant.placeholderImagePath),
-                        questionUi(quizModel.questions[index].question),
+                        questionNumberAndScoreUi(index,widget.quizModel.questions.length,widget.quizModel.questions[index].score),
+                        questionImageUi(widget.quizModel.questions[index].questionImageUrl!,AppConstant.assetImagePath+AppConstant.placeholderImagePath),
+                        questionUi(widget.quizModel.questions[index].question),
                         Column(
                           mainAxisSize: MainAxisSize.min,
                           mainAxisAlignment: MainAxisAlignment.start,
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          children: quizModel.questions[index].answers.answerMap!.entries.map((e) => Card(
-                            //color: ,
-                            child: InkWell(
-                              onTap: (){
-                                setState(() {
-                                  quizIndex++;
-                                  if(e.key==quizModel.questions[index].correctAnswer){
-                                    currentScore+=int.parse(quizModel.questions[index].score);
-                                    //print('Current score:$currentScore');
-                                  }
-                                  if(index==quizModel.questions.length-1){
-                                    if(highScore<currentScore){
-                                      highScore=currentScore;
-                                      SharedPrefManager.setHighScore(highScore);
-                                      widgetSnackBar(context,AppConstant.congorMsg);
+                          children: widget.quizModel.questions[index].answers.answerMap!.entries.map((e){
+                            return Card(
+                              //color: ,
+                              child: InkWell(
+                                onTap: (){
+                                  setState(() {
+                                    quizIndex++;
+                                    if(e.key==widget.quizModel.questions[index].correctAnswer){
+                                      currentScore+=int.parse(widget.quizModel.questions[index].score);
+                                      //print('Current score:$currentScore');
                                     }
-                                    Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context)=>HomeScreen(score: highScore,)), (route) => false);
-                                  }
-                                });
-                              },
-                              child: answerOptionUi(e.key,e.value),
-                            ),
-                          )).toList(),),
+                                    if(index==widget.quizModel.questions.length-1){
+                                      if(highScore<currentScore){
+                                        highScore=currentScore;
+                                        SharedPrefManager.setHighScore(highScore);
+                                        widgetSnackBar(context,AppConstant.congorMsg);
+                                      }
+                                      Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context)=>HomeScreen()), (route) => false);
+                                    }
+                                  });
+                                },
+                                child: answerOptionUi(e.key,e.value),
+                              ),
+                            );
+                          }).toList(),),
                       ],
                     )
                 ),
@@ -105,32 +112,7 @@ class _QuizScreenState extends State<QuizScreen> {
     );
   }
 
-  Future<void> _initQuizLoad() async {
-    try {
-      showLoader(context, AppConstant.loaderMsg);
 
-      var quizInfo = await initQuizInfo();
-      print("");
-
-      stopLoader(context);
-
-      if (quizInfo is String) {
-        print("");
-        widgetErrorSnackBar(context, quizInfo);
-      } else {
-        quizModel = quizInfo;
-        print('');
-
-        setState(() {
-          quizModel;
-        });
-      }
-
-      print('');
-    } catch (e) {
-      print(e);
-    }
-  }
 
   Widget answerOptionUi(String key,String value){
     return Padding(
